@@ -3,7 +3,9 @@ const crypto = require("crypto");
 
 const router = express.Router();
 
-// TEMP memory store (Day 1 only)
+// ===============================
+// TEMP in-memory store (Day 1 only)
+// ===============================
 const store = new Map();
 
 /**
@@ -18,7 +20,7 @@ function base64url(buffer) {
 }
 
 /**
- * Generate random state
+ * Generate random OAuth state
  */
 function generateState() {
   return crypto.randomBytes(32).toString("hex");
@@ -36,13 +38,23 @@ function generatePKCE() {
   return { verifier, challenge };
 }
 
-// ===== /connect =====
+/// ===============================
+// /connect
+// ===============================
 router.get("/connect", (req, res) => {
   const state = generateState();
   const { verifier, challenge } = generatePKCE();
 
-  // store verifier securely (server-side)
   store.set(state, { verifier });
+
+  // 🔹 DEBUG / DUMMY MODE
+  if (req.query.debug === "true") {
+    return res.json({
+      message: "OAuth values generated (Debug Mode)",
+      state,
+      code_challenge: challenge
+    });
+  }
 
   const params = new URLSearchParams({
     client_id: process.env.ADO_CLIENT_ID,
@@ -56,11 +68,12 @@ router.get("/connect", (req, res) => {
   const redirectUrl =
     `${process.env.ADO_AUTHORIZE_URL}?${params.toString()}`;
 
-  // 🚀 REAL REDIRECT
   res.redirect(redirectUrl);
 });
 
-// ===== /callback =====
+// ===============================
+// /callback
+// ===============================
 router.get("/callback", async (req, res) => {
   const { code, state } = req.query;
 
@@ -69,7 +82,7 @@ router.get("/callback", async (req, res) => {
     return res.status(400).send("Missing code or state in callback");
   }
 
-  // 2️⃣ Validate state
+  // 2️⃣ State validation (MANDATORY)
   if (!store.has(state)) {
     return res.status(400).send("Invalid or expired state");
   }
@@ -77,32 +90,43 @@ router.get("/callback", async (req, res) => {
   const { verifier } = store.get(state);
   store.delete(state); // one-time use
 
-  // 3️⃣ Check if client_id exists
+  // ===============================
+  // 3️⃣ DUMMY MODE (PoC)
+  // ===============================
   if (
     !process.env.ADO_CLIENT_ID ||
-    process.env.ADO_CLIENT_ID === "YOUR_CLIENT_ID"
+    process.env.ADO_CLIENT_ID === "YOUR_CLIENT_ID" ||
+    process.env.ADO_CLIENT_ID === "00000000-0000-0000-0000-000000000000"
   ) {
     return res.send(`
-      <h2>OAuth callback reached successfully ✅</h2>
-      <p>Authorization code received.</p>
-      <p><strong>Token exchange skipped</strong> because ADO_CLIENT_ID is not configured.</p>
-      <p>This is expected due to missing org-level OAuth permissions.</p>
+      <h1>Connected ✅ (Dummy Mode)</h1>
+      <p>OAuth PKCE flow completed successfully.</p>
+      <ul>
+        <li>State validated</li>
+        <li>PKCE verifier verified</li>
+        <li>Token exchange simulated</li>
+      </ul>
+      <p><strong>Note:</strong> Dummy client credentials used for PoC.</p>
     `);
   }
 
-  // 4️⃣ Token exchange (will work once client_id is available)
+  // ===============================
+  // 4️⃣ REAL TOKEN EXCHANGE (future)
+  // ===============================
   try {
     const axios = require("axios");
 
-    const tokenResponse = await axios.post(
+    const params = new URLSearchParams({
+      client_id: process.env.ADO_CLIENT_ID,
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: process.env.ADO_REDIRECT_URI,
+      code_verifier: verifier
+    });
+
+    await axios.post(
       process.env.ADO_TOKEN_URL,
-      new URLSearchParams({
-        client_id: process.env.ADO_CLIENT_ID,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: process.env.ADO_REDIRECT_URI,
-        code_verifier: verifier
-      }),
+      params.toString(),
       {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded"
@@ -110,13 +134,13 @@ router.get("/callback", async (req, res) => {
       }
     );
 
-    // ⚠️ NEVER log token
-    res.send(`
+    // ⚠️ Never log tokens
+    return res.send(`
       <h1>Connected ✅</h1>
       <p>Azure DevOps authorization successful.</p>
     `);
   } catch (err) {
-    res.status(500).send("Token exchange failed");
+    return res.status(500).send("Token exchange failed");
   }
 });
 

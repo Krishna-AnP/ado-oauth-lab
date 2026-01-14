@@ -121,3 +121,7 @@ Token exchange simulated
 - Requires org-level Azure DevOps OAuth App permissions
 
 - Client ID pending approval from admin
+
+## Note:
+This project currently runs in Dummy OAuth mode due to pending Azure DevOps organization-level OAuth Client ID access.
+The complete PKCE flow is implemented and will work with real credentials without code changes.

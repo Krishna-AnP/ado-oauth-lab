@@ -1,78 +1,123 @@
+## Azure DevOps OAuth PKCE – Day 1 (PoC)
 # Overview
 
-This project implements a production-style OAuth 2.0 Authorization Code flow with PKCE for Azure DevOps (ADO) using Node.js + Express.
-The goal is to provide a secure, well-structured OAuth skeleton that can be promoted to production once organization-level credentials are provisioned.
+This project is a Proof of Concept (PoC) for implementing OAuth 2.0 Authorization Code Flow with PKCE for Azure DevOps using Node.js + Express.
 
-# Status: Day-1 flow implemented end-to-end. Token exchange is gated due to pending org-provided client_id.
+Since real Azure DevOps OAuth credentials (Client ID) require organization-level permissions, dummy client mode is used for Day-1 validation.
 
-# Features (Day 1)
+# The focus of Day-1 is:
 
-* OAuth 2.0 Authorization Code flow
+* Understanding OAuth PKCE flow
 
-* PKCE (S256) implementation
+* Implementing state & PKCE security
 
-* State validation for CSRF protection
+* Validating redirect & callback handling
 
-* Secure server-side storage of state → code_verifier
+* Preparing codebase for real Azure credentials
 
-* Configurable redirect URIs (dev/stage/prod ready)
+# Day-1 Objectives
 
-* Safe handling when credentials are unavailable
+* Setup Node.js Express server
 
-* No secrets logged
+* Implement OAuth /connect endpoint
 
-# Tech Stack
+* Generate and validate:
 
-* Node.js
+# OAuth state
 
-* Express
+PKCE code_verifier & code_challenge
 
-* Axios
+* Handle OAuth /callback
 
-* dotenv
+* Simulate token exchange (Dummy Mode)
 
-# Project Structure
-node-poc/
-├── server.js          # App bootstrap
-├── oauth.js           # OAuth routes (/connect, /callback)
-├── .env               # Local environment variables (not committed)
-├── .env.example       # Sample env file
-├── package.json
-├── node_modules/
-└── docs/
-    ├── 01_oauth_flow_spec.md
-    ├── 02_token_strategy.md
-    └── 03_env_setup_runbook.md
-    
-# Environment Setup
+* Secure server-side state validation
 
-* Create a .env file based on .env.example:
+* Real Azure token exchange (blocked due to missing client ID)
+
+#  Project Structure
+ado-oauth-lab/
+│
+├── node-poc/
+│   ├── server.js        # Express server bootstrap
+│   ├── oauth.js         # OAuth PKCE logic
+│   ├── package.json
+│   ├── .env             # Environment config
+│   └── README.md
+
+# Environment Configuration
+
+* Create a .env file:
 
 PORT=3000
-ADO_CLIENT_ID=YOUR_CLIENT_ID
+
+ADO_CLIENT_ID=YOUR_CLIENT_ID   # Dummy value for Day-1
 ADO_REDIRECT_URI=http://localhost:3000/callback
+
 ADO_AUTHORIZE_URL=https://app.vssps.visualstudio.com/oauth2/authorize
 ADO_TOKEN_URL=https://app.vssps.visualstudio.com/oauth2/token
 
-ADO_CLIENT_ID is currently a placeholder and will be provided by the organization admin.
 
-# Run Locally
-npm install
-node server.js
+** ADO_CLIENT_ID is intentionally dummy due to permission constraints.
 
-# Open:
+# OAuth Flow (Day-1)
+* /connect
 
-http://localhost:3000/connect
+- Generates secure state
 
-# Current Limitation
+- Generates PKCE verifier & challenge
 
-Token exchange requires an Azure DevOps OAuth Client ID, which must be created by an org admin.
-Until that is provisioned, the callback route safely skips token exchange and renders a confirmation message.
+- Stores verifier server-side
 
-# Security Notes
+- Redirects to Azure DevOps OAuth URL
 
-* PKCE + state validation are mandatory and enforced
+* /callback
 
-* Tokens are never logged
+- Validates state
 
-* Secrets are externalized via environment variables
+- Validates PKCE verifier
+
+- If Client ID missing → switches to Dummy Mode
+
+- Simulates successful token exchange
+
+# Dummy Mode (PoC)
+
+* Since Azure DevOps OAuth requires:
+
+- Organization admin access
+
+- Approved OAuth app registration
+
+* A Dummy OAuth Mode is implemented to validate:
+
+- End-to-end OAuth flow
+
+- PKCE security logic
+
+- Callback correctness
+
+# Sample Success Output:
+Connected ✅ (Dummy Mode)
+
+State validated
+PKCE verifier verified
+Token exchange simulated
+
+# Security Considerations
+
+- State is stored server-side and validated once
+
+- PKCE verifier is never exposed to client
+
+- Token values are never logged
+
+- Dummy tokens used strictly for PoC
+
+# Limitations
+
+- Real Azure DevOps OAuth token exchange not executed
+
+- Requires org-level Azure DevOps OAuth App permissions
+
+- Client ID pending approval from admin

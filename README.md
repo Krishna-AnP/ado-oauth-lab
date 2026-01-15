@@ -125,3 +125,13 @@ Token exchange simulated
 ## Note:
 This project currently runs in Dummy OAuth mode due to pending Azure DevOps organization-level OAuth Client ID access.
 The complete PKCE flow is implemented and will work with real credentials without code changes.
+
+
+## Day 2 – Token Storage & Security
+
+- Tokens are encrypted using AES-256-GCM before storage.
+- Encrypted tokens are stored in SQLite.
+- Tokens are decrypted only at runtime when needed.
+- Dummy OAuth mode is supported for PoC when client credentials are unavailable.
+- No secrets or tokens are ever logged.
+

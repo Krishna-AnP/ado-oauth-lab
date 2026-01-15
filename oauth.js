@@ -91,24 +91,61 @@ router.get("/callback", async (req, res) => {
   store.delete(state); // one-time use
 
   // ===============================
-  // 3️⃣ DUMMY MODE (PoC)
-  // ===============================
+// 3️⃣ DUMMY MODE (PoC)
+// ===============================
   if (
     !process.env.ADO_CLIENT_ID ||
     process.env.ADO_CLIENT_ID === "YOUR_CLIENT_ID" ||
     process.env.ADO_CLIENT_ID === "00000000-0000-0000-0000-000000000000"
   ) {
-    return res.send(`
-      <h1>Connected ✅ (Dummy Mode)</h1>
-      <p>OAuth PKCE flow completed successfully.</p>
-      <ul>
-        <li>State validated</li>
-        <li>PKCE verifier verified</li>
-        <li>Token exchange simulated</li>
-      </ul>
-      <p><strong>Note:</strong> Dummy client credentials used for PoC.</p>
-    `);
-  }
+    const db = require("./db/db");
+    const { encrypt } = require("./utils/crypto");
+
+    // Dummy token (PoC)
+    const dummyToken = "dummy_access_token_123";
+
+    // Encrypt before storing
+    const encryptedToken = encrypt(dummyToken);
+
+    // Store in SQLite
+    db.run(
+      `INSERT INTO tokens (provider, encrypted_token) VALUES (?, ?)`,
+      ["azure-devops", encryptedToken],
+      (err) => {
+        if (err) {
+          console.error("Failed to store token"); // safe log
+        }
+      }
+    );
+
+        // ===============================
+      // READ + DECRYPT TOKEN (Day 2)
+      // ===============================
+      const { getLatestToken } = require("./db/tokenStore");
+
+      getLatestToken("azure-devops")
+        .then((token) => {
+          if (token) {
+            // Simulated API call using decrypted token
+            console.log("Dummy API call executed successfully");
+          }
+        })
+        .catch(() => {
+          console.error("Failed to fetch token for API call");
+        });
+
+
+      return res.send(`
+        <h1>Connected ✅ (Dummy Mode)</h1>
+        <p>OAuth PKCE flow completed successfully.</p>
+        <ul>
+          <li>State validated</li>
+          <li>PKCE verifier verified</li>
+          <li>Token encrypted & stored in SQLite</li>
+        </ul>
+      `);
+    }
+
 
   // ===============================
   // 4️⃣ REAL TOKEN EXCHANGE (future)
